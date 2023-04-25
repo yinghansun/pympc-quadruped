@@ -135,8 +135,8 @@ $$
 \begin{aligned}
 \ddot{\mathbf{p}} &= \frac{\sum_{i=1}^n\mathbf{f}_i}{m} - \mathbf{g} \\
 \frac{\text{d}}{\text{d}t}(\mathbf{I\omega}) &= \sum_{i=1}^n \mathbf{r}_i \times \mathbf{f}_i\\
-\dot{\mathbf{R}} &= [\mathbf{\omega}]\mathbf{R} \tag{2}
-\end{aligned}
+\dot{\mathbf{R}} &= [\mathbf{\omega}]\mathbf{R}
+\end{aligned} \tag{2}
 $$
 
 where $\mathbf{p} \in \mathbb{R}^3$ is the robot's position in world frame, $m \in \mathbb{R}$ is the robot's mass, $\mathbf{g} \in \mathbb{R}^3$ is the acceleration of gravity, and $\mathbf{I} \in \mathbb{R}^3$ is the robot's inertia tensor. *The nonlinear dynamics in the second and third equation of (2) motivate the approximations to avoid the nonconvex optimization that would otherwise be required for model predictive control.*
