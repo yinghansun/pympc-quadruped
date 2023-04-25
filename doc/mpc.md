@@ -261,6 +261,7 @@ is used to set all forces from feet off the ground to zero, enforcing the desire
 The inequality constraints limit the minimum and maximum $z$-force as well as a square pyramid approximation of the friction cone.
 
 For each foot, we have the following 10 inequality constraints ($i = 1,2,3,4$).
+
 $$
 \begin{aligned}
 f_{\min} \leq &f_{i,z} \leq f_{\max} \\
@@ -323,6 +324,7 @@ In practice, the reference trajectory is short (between 0.5 and 0.3 seconds) and
 
 ### a. Batch Formulation for Dynamic Constraints
 **Key idea:** For the state space model, express $x_0, x_1, \cdots, x_k$ as function of $u_0$.
+
 $$
 \begin{aligned}
 x_1 &= Ax_0 + Bu_0 \\
@@ -331,7 +333,9 @@ x_2 &= Ax_1 + Bu_1 = A^2x_0 + ABu_0 + Bu_1 \\
 x_k & = A^kx_0 + A^{k-1}Bu_0 + A^{k-2}Bu_1 + \cdots + Bu_{k-1}
 \end{aligned}
 $$
+
 We can write these equations in matrix form
+
 $$
 \begin{bmatrix}
 x_1 \\ x_2 \\ \vdots \\ x_k
@@ -351,7 +355,9 @@ A^{k-1}B & A^{k-2}B & \cdots & B
 u_0 \\ u_1 \\ \vdots \\ u_{k-1}
 \end{bmatrix}
 $$
+
 where $k$ is the **horizon length**. Let $x_t$ denotes the system state at time step $t$, i.e. at **current state**, then we can write
+
 $$
 \begin{bmatrix}
 x_{t+1} \\ x_{t+2} \\ \vdots \\ x_{t+k}
@@ -371,12 +377,15 @@ A^{k-1}B & A^{k-2}B & \cdots & B
 u_t \\ u_{t+1} \\ \vdots \\ u_{t+k-1}
 \end{bmatrix}
 $$
+
 We can denote this equation as 
+
 $$
 X = S^x x_t + S^u U
 $$
 
 For a 2-norm cost function, we can write
+
 $$
 \begin{aligned}
 J_k(x_t,\mathbf{U}) &= J_f(x_k) + \sum_{i=0}^{k-1}l(x_i,u_i) \\
@@ -384,7 +393,9 @@ J_k(x_t,\mathbf{U}) &= J_f(x_k) + \sum_{i=0}^{k-1}l(x_i,u_i) \\
 &= X^\text{T}\bar{Q}X + U^\text{T}\bar{R}U
 \end{aligned}
 $$
+
 where
+
 $$
 \mathbf{U} =
 \begin{bmatrix}
@@ -402,7 +413,9 @@ $$
      & & R \\
 \end{bmatrix}
 $$
+
 Substituting the expression of state space model into the cost, we have
+
 $$
 \begin{aligned}
 J_k(x_t,\mathbf{U}) &= X^\text{T}\bar{Q}X + U^\text{T}\bar{R}U \\
@@ -421,6 +434,7 @@ $$
 
 ### b. Create QP Cost
 Recall that the form of our MPC problem is
+
 $$
 \begin{aligned}
 \min_{x, u} \quad& \sum_{i=0}^{k-1}(x_{i+1}-x_{i+1,\text{ref}})^{\text{T}}Q_i(x_{i+1}-x_{i+1,\text{ref}}) + u_i^\text{T}R_iu_i \\
@@ -429,9 +443,11 @@ $$
 & D_iu_i = 0
 \end{aligned}
 $$
+
 where $i = 0, \cdots, k-1$. 
 
 In this project, we choose $Q_1 = \cdots = Q_{k-1} = Q_f$, i.e.
+
 $$
 \bar{Q} = \begin{bmatrix}
     Q & & & \\
@@ -445,6 +461,7 @@ $$
      & & R \\
 \end{bmatrix}
 $$
+
 ~~~python
 _Qi = np.diag(np.array(parameters['Q'], dtype=float))
 Qbar = np.kron(np.identity(horizon), _Qi)
@@ -455,6 +472,7 @@ Rbar = np.kron(np.identity(horizon), _Ri)
 ~~~
 
 Let's substitute the dynamic constraint into the cost function, then we can get
+
 $$
 \begin{aligned}
 J &= \sum_{i=0}^{k-1}(x_{i+1}-x_{i+1,\text{ref}})^{\text{T}}Q_i(x_{i+1}-x_{i+1,\text{ref}}) + u_i^\text{T}R_iu_i \\
@@ -462,7 +480,9 @@ J &= \sum_{i=0}^{k-1}(x_{i+1}-x_{i+1,\text{ref}})^{\text{T}}Q_i(x_{i+1}-x_{i+1,\
 &= (S^x x_t + S^u U - X_{\text{ref}})^\text{T}\bar{Q}(S^x x_t + S^u U - X_\text{ref}) + U^\text{T}\bar{R}U
 \end{aligned}
 $$
+
 where $X_\text{ref} = [x_{1,\text{ref}}, \cdots, x_{k,\text{ref}}]^\text{T}$. We can get the QP matrix with the same procedure.
+
 $$
 \begin{aligned}
 H &= 2\left((S^u)^\text{T}\bar{Q}S^u + \bar{R}\right) \\
@@ -477,6 +497,7 @@ $$
 **qpsolvers**: https://pypi.org/project/qpsolvers/
 
 As mentioned in the project description of qpsolvers, we need to write our formulation in the form
+
 $$
 \begin{aligned}
 \min_x &\quad \frac{1}{2}x^\text{T}Px + q^\text{T}x \\
@@ -485,6 +506,7 @@ $$
 &\quad \text{lb} \leq x \leq \text{ub}
 \end{aligned}
 $$
+
 Then we can get the solution using the code below
 ~~~python
 from qpsolvers import solve_qp
@@ -493,6 +515,7 @@ print("QP solution: x = {}".format(x))
 ~~~
 
 The QP problem in the paper is written as
+
 $$
 \begin{aligned}
 \min_\mathbf{U} &\quad \frac{1}{2}\mathbf{U}^\text{T}\mathbf{HU} + \mathbf{U}^\text{T}\mathbf{g} \\
