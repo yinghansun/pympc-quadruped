@@ -270,6 +270,7 @@ f_{\min} \leq &f_{i,z} \leq f_{\max} \\
 $$
 
 We want to write these constraints in matrix form. Thus we need to look these equations in detail. For example, the constraints $-\mu f_{i,z} \leq \pm f_{i,x} \leq \mu f_{i,z}$ actually are
+
 $$
 \begin{aligned}
 -\mu f_{i,z} &\leq f_{i,x} \\
@@ -278,7 +279,9 @@ f_{i,x} &\leq \mu f_{i,z} \\
 -f_{i,x} &\leq \mu f_{i,z}
 \end{aligned}
 $$
+
 We can rewrite these equations as
+
 $$
 \begin{aligned}
 f_{i,x} + \mu f_{i,z} &\geq 0 \\
@@ -287,6 +290,7 @@ f_{i,x} - \mu f_{i,z} &\leq 0 \\
 -f_{i,x} - \mu f_{i,z} &\leq 0 
 \end{aligned}
 $$
+
 We can see that the first two equations and the last two equations are the same. Thus we can use the first two equations to replace these four equations. We can also note that $f_{\min} = 0$ as always. With the observation discussed above, we can write the force constraints for one foot **on the ground** as
 
 $$
