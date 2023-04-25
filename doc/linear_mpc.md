@@ -1,4 +1,4 @@
-# Model Predictive Controller
+# Linear Model Predictive Controller
 
 ### Reference 
 
@@ -13,10 +13,13 @@ PDF link: https://dspace.mit.edu/bitstream/handle/1721.1/138000/convex_mpc_2fix.
 ## 1. Dynamic Constraints
 ### a. Approximated Angular Velocity Dynamics
 The robot's orientation is expressed as a vector of Z-Y-X Euler angles $\Theta = [\phi, \theta, \psi]^\text{T}$, where $\psi$ is the yaw, $\theta$ is the pitch, and $\phi$ is the roll. These angles correspond to a sequence of rotations such that the transform from body to world coordinates can be expressed as
+
 $$
 \mathbf{R} = \mathbf{R}_z(\psi)\mathbf{R}_y(\theta)\mathbf{R}_x(\phi)
 $$
+
 where $\mathbf{R}_n(\alpha)$ represents a positive rotation of $\alpha$ about the $n$-axis. In details, we can write
+
 $$
 \mathbf{R}_z(\psi) = \begin{bmatrix}
     \cos\psi & -\sin \psi & 0 \\
@@ -36,6 +39,7 @@ $$
 $$
 
 From [2], we have known that $\dot{\mathbf{R}} = [\mathbf{\omega}]\mathbf{R}$, where $\mathbf{\omega} \in \mathbb{R}^3$ is the robot's angular velocity, $[\mathbf{\omega}] \in \mathbb{R}^{3\times3}$ is defined as the skew-symmetric matrix with respect to $\mathbf{\omega}$, and $\mathbf{R}$ is the rotation matrix which transforms from body to world coordinates. Then the angular velocity in world coordinates can be found with
+
 $$
 \begin{aligned}
 [\mathbf{\omega}] &= \dot{\mathbf{R}}\mathbf{R}^{-1} = \dot{\mathbf{R}}\mathbf{R}^\text{T} \\
@@ -47,6 +51,7 @@ $$
 \end{bmatrix}
 \end{aligned}
 $$
+
 The above result is easy to get using the MATLAB script.
 ~~~matlab
 clc;
@@ -73,6 +78,7 @@ Somega = simplify((diff(R,phi)*phidot + diff(R,theta)*thetadot + diff(R,psi)*psi
 ~~~
 
 Now we are ready to build connections between the angular velocity in world coordinates $\mathbf{\omega}$ and the rate of change of Euler angles $\dot{\mathbf{\Theta}} = [\dot{\phi}, \dot{\theta}, \dot{\psi}]^\text{T}$.
+
 $$
 \mathbf{\omega} = \begin{bmatrix}
     -\dot{\theta}\sin\psi + \dot{\phi}\cos\psi\cos\theta \\
@@ -89,6 +95,7 @@ $$
 $$
 
 If the robot is not pointed vertically, which means $\cos\theta \neq 0$, the matrix $\mathbf{E}$ is invertable. In such case, we can get
+
 $$
 \dot{\mathbf{\Theta}} = \mathbf{E}^{-1}\mathbf{\omega} = \begin{bmatrix}
     \frac{\cos\psi}{\cos\theta} & \frac{\sin\psi}{\cos\theta} & 0 \\
@@ -98,6 +105,7 @@ $$
 $$
 
 For small values of roll $\phi$ and pitch $\theta$, the above equation can be approximated as
+
 $$
 \dot{\mathbf{\Theta}} \approx \begin{bmatrix}
     \cos\psi  & \sin\psi & 0 \\
@@ -105,7 +113,9 @@ $$
     0         & 0        & 1
 \end{bmatrix} \mathbf{\omega}
 $$
+
 which is equivalent to 
+
 $$
 \dot{\mathbf{\Theta}} \approx \mathbf{R}_z^\text{T} \mathbf{\omega}
 \tag{1}
@@ -120,6 +130,7 @@ The predictive controller models the robot as a **single rigid body** subject to
 For the Cheetah 3 robot, this simplification is **reasonable**: the mass of the legs is roughly 10% of the robot's total mass.
 
 For each ground reaction force $\mathbf{f}_i \in \mathbb{R}^3$, the vector from the CoM to the point where the force is applied is $\mathbf{r}_i \in \mathbb{R}^3$. The rigid body dynamics in world coordinates are given by
+
 $$
 \begin{aligned}
 \ddot{\mathbf{p}} &= \frac{\sum_{i=1}^n\mathbf{f}_i}{m} - \mathbf{g} \\
@@ -127,28 +138,37 @@ $$
 \dot{\mathbf{R}} &= [\mathbf{\omega}]\mathbf{R} \tag{2}
 \end{aligned}
 $$
+
 where $\mathbf{p} \in \mathbb{R}^3$ is the robot's position in world frame, $m \in \mathbb{R}$ is the robot's mass, $\mathbf{g} \in \mathbb{R}^3$ is the acceleration of gravity, and $\mathbf{I} \in \mathbb{R}^3$ is the robot's inertia tensor. *The nonlinear dynamics in the second and third equation of (2) motivate the approximations to avoid the nonconvex optimization that would otherwise be required for model predictive control.*
 
 The second equation in (2) can be approximated with:
+
 $$
 \frac{\text{d}}{\text{d}t}(\mathbf{I\omega}) = \mathbf{I\dot{\omega}} + \omega \times (\mathbf{I\omega}) \approx \mathbf{I\dot{\omega}} = \sum_{i=1}^n \mathbf{r}_i \times \mathbf{f}_i \tag{3}
 $$
+
 This approximation has been made in other people's work. *The $\omega \times (\mathbf{I\omega})$ term is small for bodies with small angular velocities and does not contribute significantly to the dynamics of the robot.* The inertia tensor in the world coordinate system can be found with
+
 $$
 \mathbf{I} = \mathbf{R}\mathbf{I}_{\mathcal{B}}\mathbf{R}^\text{T}
 $$
+
 where $\mathbf{I}_\mathcal{B}$ is the inertia tensor in body coordinates. For small roll and pitch angles, This can be approximated by
+
 $$
 \mathbf{\hat{I}} = \mathbf{R}_z(\psi)\mathbf{I}_{\mathcal{B}}\mathbf{R}_z(\psi)^\text{T}
 \tag{4}
 $$
+
 where $\mathbf{\hat{I}}$ is the approximated robot's inertia tensor in world frame. Combining equations (3)(4), we get
+
 $$
 \mathbf{\dot{\omega}} = \mathbf{\hat{I}}^{-1}\sum_{i=1}^n \mathbf{r}_i \times \mathbf{f}_i = \mathbf{\hat{I}}^{-1}\sum_{i=1}^n [\mathbf{r}_i] \mathbf{f}_i
 \tag{5}
 $$
 
 For the third equation of (2), we have made the approximation in section 1.a, which gives us
+
 $$
 \dot{\mathbf{\Theta}} \approx \mathbf{R}_z^\text{T} \mathbf{\omega}
 $$
@@ -156,6 +176,7 @@ $$
 
 ### c. Continuous-Time State Space Model
 From the discussion above, we can write the simplified single rigid body model using equations (1)(2)
+
 $$
 \begin{aligned}
 \dot{\mathbf{\Theta}} &= \mathbf{R}_z^\text{T} \mathbf{\omega} \\
@@ -167,6 +188,7 @@ $$
 $$
 
 In matrix form:
+
 $$
 \begin{bmatrix}
     \mathbf{\dot{\Theta}} \\ \mathbf{\dot{p}} \\ \mathbf{\dot{\omega}} \\ \mathbf{\ddot{p}}
@@ -194,13 +216,17 @@ $$
     \mathbf{0}_{31} \\ \mathbf{0}_{31} \\ \mathbf{0}_{31} \\ -\mathbf{g}
 \end{bmatrix}
 $$
+
 This equation can be rewritten with an additional gravity state $g$ (*note that here $g$ is a scalar*) to put the dynamics into the convenient state-space form:
+
 $$
 \dot{\mathbf{x}}(t) = \mathbf{A_c}(\psi)\mathbf{x}(t) + \mathbf{B_c}(\mathbf{r}_1, \cdots, \mathbf{r}_4, \psi)\mathbf{u}(t)
 \tag{7}
 $$
+
 where $\mathbf{A_c} \in \mathbb{R}^{13\times13}$ and $\mathbf{B_c} \in \mathbb{R}^{13\times12}$. 
 In details, we have
+
 $$
 \begin{bmatrix}
     \mathbf{\dot{\Theta}} \\ \mathbf{\dot{p}} \\ \mathbf{\dot{\omega}} \\ \mathbf{\ddot{p}} \\ -\dot{g}
@@ -232,6 +258,7 @@ $$
 
 ### d. Discretization
 See https://en.wikipedia.org/wiki/Discretization for more details about the purposed method.
+
 $$
 \exp\left(\begin{bmatrix}
           \mathbf{A_c} & \mathbf{B_c} \\
@@ -242,19 +269,24 @@ $$
           \mathbf{0}   & \mathbf{I}
           \end{bmatrix} \tag{9}
 $$
+
 This allows us to express the dynamics in the discrete time form
+
 $$
 \mathbf{x}[k+1] = \mathbf{A_d} \mathbf{x}[k] + \mathbf{B_d}[k]\mathbf{u}[k]
 \tag{10}
 $$
+
 *The above approximation is only accurate if the robot is able to follow the reference trajectory*. Large deviations from the reference trajectory, possibly caused by external or terrain disturbances, will result in $\mathbf{B_d}[k]$ being inaccurate. However, for the first time step, $\mathbf{B_d}[k]$ is calculated from the current robot state, and will always be correct. *If, at any point, the robot is disturbed from following the reference trajectory, the next iteration of the MPC, which happens at most 40 ms after the disturbance, will recompute the reference trajectory based on the disturbed robot state, allowing it compensate for a disturbance.*
 
 ## 2. Force Constraints
 ### a. Equality Constraints
 The equality constraint
+
 $$
 \mathbf{D}_k \mathbf{u}_k = \mathbf{0} \tag{11}
 $$
+
 is used to set all forces from feet off the ground to zero, enforcing the desired gait, where $\mathbf{D}_k$ is a matrix which selects forces corresponding with feet not in contact with the ground at timestep $k$.
 
 ### b. Inequality Constraints
