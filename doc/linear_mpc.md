@@ -2,11 +2,11 @@
 
 ### Reference 
 
-[1] Di Carlo J., Wensing P. M., Katz B., et al. Dynamic locomotion in the mit cheetah 3 through convex model-predictive control[C]//2018 IEEE/RSJ international conference on intelligent robots and systems (IROS). IEEE, 2018: 1-9.
+[1] Di Carlo J., Wensing P. M., Katz B., et al. Dynamic Locomotion in the MIT Cheetah 3 Through Convex Model-Predictive Control[C]//2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS). IEEE, 2018: 1-9. [[PDF]](https://dspace.mit.edu/bitstream/handle/1721.1/138000/convex_mpc_2fix.pdf?sequence=2&isAllowed=y)
 
-PDF link: https://dspace.mit.edu/bitstream/handle/1721.1/138000/convex_mpc_2fix.pdf?sequence=2&isAllowed=y
 
-[2] Spong M W, Hutchinson S, Vidyasagar M. Robot modeling and control[M]. New York: Wiley, 2006.
+[2] Bledt G, Powell M J, Katz B, et al. Mit cheetah 3: Design and Control of a Robust, Dynamic Quadruped Robot[C]//2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS). IEEE, 2018: 2245-2252. [[PDF]](https://dspace.mit.edu/bitstream/handle/1721.1/126619/IROS.pdf?sequence=2&isAllowed=y)
+
 
 ### Overview
 
