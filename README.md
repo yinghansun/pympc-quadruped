@@ -4,7 +4,7 @@ A Python implementation about quadruped locomotion using convex model predictive
 ## Installation
 
 ### 1. Install Simulators
-a. Mujoco
+#### a. Mujoco
 - Create a folder named `.mujoco` in your home directory: `$ mkdir ~/.mujoco`.
 - Download Mujoco library from https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz. Extract and move it to the `.mujoco` folder.
 - Add the following to your `.bashrc` file:
@@ -21,10 +21,10 @@ a. Mujoco
     $ ./simulate ../model/humanoid.xml
     ~~~
 
-b. Isaac Gym
+#### b. Isaac Gym
 
 ### 2. Create a Virtual Environment
-a. Install virtualenv:
+#### a. Install virtualenv:
 ~~~
 $ sudo apt install python3-virtualenv
 ~~~
@@ -33,7 +33,7 @@ or
 $ pip install virtualenv
 ~~~
 
-b. Create a virtual environment:
+#### b. Create a virtual environment:
 ~~~
 $ cd ${path-to-pympc-quadruped}
 $ virtualenv --python /usr/bin/python3.8 pympc-env
