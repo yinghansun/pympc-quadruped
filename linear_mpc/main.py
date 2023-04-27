@@ -5,34 +5,33 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../config'))
 
 import mujoco_py
 from mujoco_py import MjViewer
-import matplotlib.pyplot as plt
 import numpy as np
 
 from gait import Gait
 from leg_controller import LegController
+from linear_mpc_configs import LinearMpcConfig
 from mpc import ModelPredictiveController
+from robot_configs import AliengoConfig
 from robot_data import RobotData
 from swing_foot_trajectory_generator import SwingFootTrajectoryGenerator
 
-from robot_configs import AliengoConfig
-from linear_mpc_configs import LinearMpcConfig
 
 STATE_ESTIMATION = False
 
 def reset(sim):
     sim.reset()
-    q_pos_init = np.array([0, 0, 0.116536,
-                           1, 0, 0, 0,
-                           0, 1.16, -2.77,
-                           0, 1.16, -2.77,
-                           0, 1.16, -2.77,
-                           0, 1.16, -2.77])
-    # q_pos_init = np.array([0, 0, 0.41,
+    # q_pos_init = np.array([0, 0, 0.116536,
     #                        1, 0, 0, 0,
-    #                        0, 0.8, -1.6,
-    #                        0, 0.8, -1.6,
-    #                        0, 0.8, -1.6,
-    #                        0, 0.8, -1.6])
+    #                        0, 1.16, -2.77,
+    #                        0, 1.16, -2.77,
+    #                        0, 1.16, -2.77,
+    #                        0, 1.16, -2.77])
+    q_pos_init = np.array([0, 0, 0.41,
+                           1, 0, 0, 0,
+                           0, 0.8, -1.6,
+                           0, 0.8, -1.6,
+                           0, 0.8, -1.6,
+                           0, 0.8, -1.6])
     q_vel_init = np.array([0, 0, 0, 
                            0, 0, 0,
                            0, 0, 0,
@@ -83,7 +82,7 @@ def get_simulated_sensor_data(sim):
 
 def initialize_robot(sim, viewer, robot_config, robot_data):
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
-    leg_controller = LegController(robot_config, is_initialization=True)
+    leg_controller = LegController(robot_config)
     init_gait = Gait.STANDING
     vel_base_des = [0., 0., 0.]
     
@@ -93,7 +92,7 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
             data = get_true_simulation_data(sim)
         else:
             data = get_simulated_sensor_data(sim)
-        # robot_data.update(data)
+
         robot_data.update(
             pos_base=data[0],
             lin_vel_base=data[1],
@@ -118,16 +117,6 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
         sim.step()
         viewer.render()
 
-def visualize_planner_result(pos_base_list, base_pos_base_swingfoot_des_list):
-    x = range(0, len(pos_base_list))
-    plt.plot(x, pos_base_list, label='base x-position')
-    plt.plot(x, base_pos_base_swingfoot_des_list[0], label='fl-foot x-pos des')
-    plt.plot(x, base_pos_base_swingfoot_des_list[1], label='fr-foot x-pos des')
-    plt.plot(x, base_pos_base_swingfoot_des_list[2], label='rl-foot x-pos des')
-    plt.plot(x, base_pos_base_swingfoot_des_list[3], label='rr-foot x-pos des')
-    plt.legend()
-    plt.show()
-
 def main():
     cur_path = os.path.dirname(__file__)
     mujoco_xml_path = os.path.join(cur_path, '../robot/aliengo/aliengo.xml')
@@ -142,21 +131,18 @@ def main():
 
     urdf_path = os.path.join(cur_path, '../robot/aliengo/urdf/aliengo.urdf')
     robot_data = RobotData(urdf_path, state_estimation=STATE_ESTIMATION)
-    initialize_robot(sim, viewer, robot_config, robot_data)
+    # initialize_robot(sim, viewer, robot_config, robot_data)
 
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
     leg_controller = LegController(robot_config)
 
     gait = Gait.TROTTING10
-    swing_foot_trajectories = [SwingFootTrajectoryGenerator(leg_id) for leg_id in range(4)]
+    swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_id) for leg_id in range(4)]
 
     vel_base_des = np.array([1.5, 0., 0.])
     yaw_turn_rate_des = 0.
 
     iter_counter = 0
-
-    xpos_base_list = []
-    xworld_pos_world_swingfoot_des_list = [[], [], [], []]
 
     while True:
 
@@ -165,7 +151,6 @@ def main():
         else:
             data = get_simulated_sensor_data(sim)
 
-        # robot_data.update(data)
         robot_data.update(
             pos_base=data[0],
             lin_vel_base=data[1],
@@ -175,43 +160,31 @@ def main():
             qdot=data[5]
         )
 
-        xpos_base_list.append(robot_data.pos_base[0])
-
         gait.set_iteration(predictive_controller.iterations_between_mpc, iter_counter)
         swing_states = gait.get_swing_state()
         gait_table = gait.get_gait_table()
-        # print(gait_table)
 
         predictive_controller.update_robot_state(robot_data)
 
         f_mpc = predictive_controller.update_mpc_if_needed(iter_counter, vel_base_des, 
             yaw_turn_rate_des, gait_table, solver='drake', debug=False, iter_debug=0) 
 
-        '''
-        initialize a dictionary. the key of this dictionary denotes the leg id,
-        the value are the information about each leg. if the leg is in stance, then
-        the corresponding value should be 'stance', else if the leg is in swing,
-        the corresponding value shoule be [base_pos_base_swingfoot_des, 
-        base_vel_base_swingfoot_des]
-        '''
-        leg_states_info = {0: None, 1: None, 2: None, 3: None}
-        for leg_id in range(4):
-            if swing_states[leg_id] > 0:   # leg is in swing state
-                swing_foot_trajectories[leg_id].set_foot_init_and_final_placement(
-                    robot_data, gait, vel_base_des, yaw_turn_rate_des)
+        pos_targets_swingfeet = np.zeros((4, 3))
+        vel_targets_swingfeet = np.zeros((4, 3))
+
+        for leg_idx in range(4):
+            if swing_states[leg_idx] > 0:   # leg is in swing state
+                swing_foot_trajs[leg_idx].set_foot_init_and_final_placement(
+                    robot_data, gait, vel_base_des, yaw_turn_rate_des
+                )
                 base_pos_base_swingfoot_des, base_vel_base_swingfoot_des = \
-                    swing_foot_trajectories[leg_id].compute_swing_foot_trajectory_in_base_frame(
-                    robot_data, gait)
-                # print(base_pos_base_swingfoot_des, base_vel_base_swingfoot_des)
-                leg_states_info[leg_id] = [base_pos_base_swingfoot_des, base_vel_base_swingfoot_des]
+                    swing_foot_trajs[leg_idx].compute_swing_foot_trajectory_in_base_frame(
+                        robot_data, gait
+                    )
+                pos_targets_swingfeet[leg_idx, :] = base_pos_base_swingfoot_des
+                vel_targets_swingfeet[leg_idx, :] = base_vel_base_swingfoot_des
 
-                pos_swingfoot_des = robot_data.pos_base + robot_data.R_base @ base_pos_base_swingfoot_des
-                xworld_pos_world_swingfoot_des_list[leg_id].append(pos_swingfoot_des[0])
-            else:
-                leg_states_info[leg_id] = 'stance'
-                xworld_pos_world_swingfoot_des_list[leg_id].append(robot_data.pos_feet[leg_id][0])
-
-        leg_controller.update(f_mpc, robot_data, leg_states_info)
+        leg_controller.update(f_mpc, robot_data, swing_states, pos_targets_swingfeet, vel_targets_swingfeet)
         torque_command = leg_controller.get_torque_command()
         sim.data.ctrl[:] = torque_command
 
@@ -224,7 +197,6 @@ def main():
             sim.reset()
             reset(sim)
             iter_counter = 0
-            # visualize_planner_result(xpos_base_list, xworld_pos_world_swingfoot_des_list)
             break
 
         

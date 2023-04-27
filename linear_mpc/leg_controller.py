@@ -10,18 +10,26 @@ from robot_data import RobotData
 
 class LegController():
     
-    def __init__(self, robot_config: RobotConfig, is_initialization=False):
-        self.is_initialization = is_initialization
+    def __init__(self, robot_config: RobotConfig):
         self.__load_parameters(robot_config)
 
     def __load_parameters(self, robot_config: RobotConfig):
         self.__Kp_swing = robot_config.Kp_swing
         self.__Kd_swing = robot_config.Kd_swing
 
-    def update(self, f_mpc: np.ndarray, robot_data: RobotData, cur_leg_states_info):
+    def update(
+        self, 
+        f_mpc: np.ndarray, 
+        robot_data: RobotData, 
+        swing_states: list,
+        pos_targets_swingfeet: np.ndarray,
+        vel_targets_swingfeet: np.ndarray
+    ):
         self.__f_mpc = f_mpc
         self.__command_list = []
-        self.__leg_states_info = cur_leg_states_info
+        self.__swing_states = swing_states
+        self.__pos_targets_swingfeet = pos_targets_swingfeet
+        self.__vel_targets_swingfeet = vel_targets_swingfeet
 
         self.__compute_torque_command(robot_data)
 
@@ -31,37 +39,24 @@ class LegController():
         base_vel_base_feet = robot_data.base_vel_base_feet
         base_pos_base_feet = robot_data.base_pos_base_feet
 
-        if self.is_initialization:
-            for leg_id in range(4):
-                Jvi = Jv_feet[leg_id]
-                # tau_i = Jvi.T @ R_base.T @ -(self.__f_mpc[leg_id])
-                tau_i = Jvi.T @ -(self.__f_mpc[leg_id, :])
-                command_i = tau_i[6+3*leg_id : 6+3*(leg_id+1)]
-                self.__command_list.append(command_i)
-        else:
-            for leg_id in range(4):
-                # the case that leg is in stance state
-                if self.__leg_states_info[leg_id] == 'stance':
-                    Jvi = Jv_feet[leg_id]
-                    # tau_i = Jvi.T @ R_base.T @ -(self.__f_mpc[leg_id])
-                    tau_i = Jvi.T @ -(self.__f_mpc[leg_id])
-                    command_i = tau_i[6+3*leg_id : 6+3*(leg_id+1)]
-                    self.__command_list.append(command_i)
-                # the case that leg is in swing state
-                else:
-                    Jvi = Jv_feet[leg_id]
-                    [base_pos_swingfoot_des, base_vel_swingfoot_des] = self.__leg_states_info[leg_id]
-                    base_vel_base_footi = base_vel_base_feet[leg_id]
-                    base_pos_base_footi = base_pos_base_feet[leg_id]
-                    # swing_err = self.__Kp_swing * (base_pos_swingfoot_des - base_pos_base_footi) \
-                    #     + self.__Kd_swing * (base_vel_swingfoot_des - base_vel_base_footi)
-                    swing_err = self.__Kp_swing @ (R_base @ base_pos_swingfoot_des - R_base @ base_pos_base_footi) \
-                        + self.__Kd_swing @ (R_base @ base_vel_swingfoot_des - R_base @ base_vel_base_footi)
-                    # print(swing_err)
-                    # tau_i = base_Jvi.T @ swing_err
-                    tau_i = Jvi.T @ swing_err
-                    command_i = tau_i[6+3*leg_id : 6+3*(leg_id+1)]
-                    self.__command_list.append(command_i)
+        for leg_idx in range(4):
+            Jvi = Jv_feet[leg_idx]
+
+            if self.__swing_states[leg_idx]:
+                base_pos_swingfoot_des = self.__pos_targets_swingfeet[leg_idx, :]
+                base_vel_swingfoot_des = self.__vel_targets_swingfeet[leg_idx, :]
+                base_vel_base_footi = base_vel_base_feet[leg_idx]
+                base_pos_base_footi = base_pos_base_feet[leg_idx]
+                
+                swing_err = self.__Kp_swing @ (R_base @ base_pos_swingfoot_des - R_base @ base_pos_base_footi) \
+                    + self.__Kd_swing @ (R_base @ base_vel_swingfoot_des - R_base @ base_vel_base_footi)                
+                tau_i = Jvi.T @ swing_err
+                cmd_i = tau_i[6+3*leg_idx : 6+3*(leg_idx+1)]
+                self.__command_list.append(cmd_i)
+            else:
+                tau_i = Jvi.T @ -self.__f_mpc[3*leg_idx:3*(leg_idx+1)]
+                cmd_i = tau_i[6+3*leg_idx:6+3*(leg_idx+1)]
+                self.__command_list.append(cmd_i)
 
     def get_torque_command(self):
         commands = []

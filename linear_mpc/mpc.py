@@ -123,7 +123,7 @@ class ModelPredictiveController():
                 # print(type(__f_mpc_debug))
                 self.__visulize_com_traj_solution(f_mpc_debug)
 
-        return self.f_mpc[0:12].reshape(4, 3)
+        return self.f_mpc[0:12]
 
     def generate_reference_trajectory(
         self, 
