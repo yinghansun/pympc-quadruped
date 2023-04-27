@@ -80,12 +80,6 @@ def get_simulated_sensor_data(sim):
     # print(simulated_sensor_data)
     return simulated_sensor_data
 
-def convert_force_vector_to_matrix(vec):
-    f_mat = [vec[0:3], vec[3:6], vec[6:9], vec[9:12]]
-    return f_mat
-
-def get_leg_states_info():
-    pass
 
 def initialize_robot(sim, viewer, robot_config, robot_data):
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
@@ -115,8 +109,7 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
 
         predictive_controller.update_robot_state(robot_data)
         f_mpc = predictive_controller.update_mpc_if_needed(
-            iter_counter, vel_base_des, 0., gait_table, solver='drake', debug=False, iter_debug=0)[0:12]
-        f_mpc = convert_force_vector_to_matrix(f_mpc)
+            iter_counter, vel_base_des, 0., gait_table, solver='drake', debug=False, iter_debug=0)
 
         leg_controller.update(f_mpc, robot_data, swing_states)
         torque_command = leg_controller.get_torque_command()
@@ -193,8 +186,6 @@ def main():
 
         f_mpc = predictive_controller.update_mpc_if_needed(iter_counter, vel_base_des, 
             yaw_turn_rate_des, gait_table, solver='drake', debug=False, iter_debug=0) 
-        f_mpc = convert_force_vector_to_matrix(f_mpc)
-        # print(f_mpc)
 
         '''
         initialize a dictionary. the key of this dictionary denotes the leg id,

@@ -116,14 +116,14 @@ class ModelPredictiveController():
             solve_start = time.time()
             self.f_mpc = self._solve_mpc(ref_traj, gait_table, solver=solver)[0:12]
             solve_end = time.time()
-            # print('MPC solved in {:3f}s.'.format(solve_end - solve_start))
+            print('MPC solved in {:3f}s.'.format(solve_end - solve_start))
 
             if debug and iter_counter == iter_debug:
                 f_mpc_debug = self._solve_mpc(ref_traj, gait_table, solver=solver, debug=debug)
                 # print(type(__f_mpc_debug))
                 self.__visulize_com_traj_solution(f_mpc_debug)
 
-        return self.f_mpc
+        return self.f_mpc[0:12].reshape(4, 3)
 
     def generate_reference_trajectory(
         self, 

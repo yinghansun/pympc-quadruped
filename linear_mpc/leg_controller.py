@@ -18,7 +18,7 @@ class LegController():
         self.__Kp_swing = robot_config.Kp_swing
         self.__Kd_swing = robot_config.Kd_swing
 
-    def update(self, f_mpc, robot_data: RobotData, cur_leg_states_info):
+    def update(self, f_mpc: np.ndarray, robot_data: RobotData, cur_leg_states_info):
         self.__f_mpc = f_mpc
         self.__command_list = []
         self.__leg_states_info = cur_leg_states_info
@@ -27,18 +27,15 @@ class LegController():
 
     def __compute_torque_command(self, robot_data: RobotData):
         Jv_feet = robot_data.Jv_feet
-        base_Jv_feet = robot_data.base_Jv_feet
-        # vel_base = robot_data.vel_base
         R_base = robot_data.R_base
         base_vel_base_feet = robot_data.base_vel_base_feet
         base_pos_base_feet = robot_data.base_pos_base_feet
-        # print(base_pos_base_feet)
 
         if self.is_initialization:
             for leg_id in range(4):
                 Jvi = Jv_feet[leg_id]
                 # tau_i = Jvi.T @ R_base.T @ -(self.__f_mpc[leg_id])
-                tau_i = Jvi.T @ -(self.__f_mpc[leg_id])
+                tau_i = Jvi.T @ -(self.__f_mpc[leg_id, :])
                 command_i = tau_i[6+3*leg_id : 6+3*(leg_id+1)]
                 self.__command_list.append(command_i)
         else:
