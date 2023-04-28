@@ -107,10 +107,10 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
         gait_table = init_gait.get_gait_table()
 
         predictive_controller.update_robot_state(robot_data)
-        f_mpc = predictive_controller.update_mpc_if_needed(
+        contact_forces = predictive_controller.update_mpc_if_needed(
             iter_counter, vel_base_des, 0., gait_table, solver='drake', debug=False, iter_debug=0)
 
-        leg_controller.update(f_mpc, robot_data, swing_states)
+        leg_controller.update(contact_forces, robot_data, swing_states)
         torque_command = leg_controller.get_torque_command()
         sim.data.ctrl[:] = torque_command
 
@@ -166,7 +166,7 @@ def main():
 
         predictive_controller.update_robot_state(robot_data)
 
-        f_mpc = predictive_controller.update_mpc_if_needed(iter_counter, vel_base_des, 
+        contact_forces = predictive_controller.update_mpc_if_needed(iter_counter, vel_base_des, 
             yaw_turn_rate_des, gait_table, solver='drake', debug=False, iter_debug=0) 
 
         pos_targets_swingfeet = np.zeros((4, 3))
@@ -184,7 +184,7 @@ def main():
                 pos_targets_swingfeet[leg_idx, :] = base_pos_base_swingfoot_des
                 vel_targets_swingfeet[leg_idx, :] = base_vel_base_swingfoot_des
 
-        leg_controller.update(f_mpc, robot_data, swing_states, pos_targets_swingfeet, vel_targets_swingfeet)
+        leg_controller.update(contact_forces, robot_data, swing_states, pos_targets_swingfeet, vel_targets_swingfeet)
         torque_command = leg_controller.get_torque_command()
         sim.data.ctrl[:] = torque_command
 

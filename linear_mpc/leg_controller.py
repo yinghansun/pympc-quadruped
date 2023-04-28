@@ -19,13 +19,13 @@ class LegController():
 
     def update(
         self, 
-        f_mpc: np.ndarray, 
+        contact_forces: np.ndarray, 
         robot_data: RobotData, 
         swing_states: list,
         pos_targets_swingfeet: np.ndarray,
         vel_targets_swingfeet: np.ndarray
     ):
-        self.__f_mpc = f_mpc
+        self.__contact_forces = contact_forces
         self.__command_list = []
         self.__swing_states = swing_states
         self.__pos_targets_swingfeet = pos_targets_swingfeet
@@ -54,7 +54,7 @@ class LegController():
                 cmd_i = tau_i[6+3*leg_idx : 6+3*(leg_idx+1)]
                 self.__command_list.append(cmd_i)
             else:
-                tau_i = Jvi.T @ -self.__f_mpc[3*leg_idx:3*(leg_idx+1)]
+                tau_i = Jvi.T @ -self.__contact_forces[3*leg_idx:3*(leg_idx+1)]
                 cmd_i = tau_i[6+3*leg_idx:6+3*(leg_idx+1)]
                 self.__command_list.append(cmd_i)
 

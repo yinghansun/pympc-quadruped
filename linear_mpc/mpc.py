@@ -1,8 +1,8 @@
-import math
-from typing import Optional, Union
-import time
 import os
 import sys
+import time
+from typing import Union
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../config'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 
@@ -11,13 +11,13 @@ import numpy as np
 from scipy.linalg import expm
 from pydrake.all import MathematicalProgram, Solve
 from qpsolvers import solve_qp
-from robot_data import RobotData
 
-from kinematics import quat2ZYXangle, vec2so3
 from dynamics import make_com_inertial_matrix
-
+from kinematics import quat2ZYXangle, vec2so3
 from linear_mpc_configs import LinearMpcConfig
 from robot_configs import RobotConfig
+from robot_data import RobotData
+
 
 class ModelPredictiveController():
 
@@ -49,12 +49,8 @@ class ModelPredictiveController():
         self.com_height_des = robot_config.base_height_des
 
         # MPC weights
-        # _Qi = np.diag(np.array(mpc_config.Q, dtype=float))
         _Qi = mpc_config.Q
         self.Qbar = np.kron(np.identity(self.horizon), _Qi)
-
-        # _r = mpc_config.R
-        # _Ri = _r * np.identity(self.num_input, dtype=float)
         _Ri = mpc_config.R
         self.Rbar = np.kron(np.identity(self.horizon), _Ri)
 
@@ -114,16 +110,15 @@ class ModelPredictiveController():
             ref_traj = self.generate_reference_trajectory(vel_base_des, yaw_turn_rate_des)
             self.ref_traj = ref_traj
             solve_start = time.time()
-            self.f_mpc = self._solve_mpc(ref_traj, gait_table, solver=solver)[0:12]
+            self.__contact_forces = self._solve_mpc(ref_traj, gait_table, solver=solver)[0:12]
             solve_end = time.time()
             print('MPC solved in {:3f}s.'.format(solve_end - solve_start))
 
             if debug and iter_counter == iter_debug:
-                f_mpc_debug = self._solve_mpc(ref_traj, gait_table, solver=solver, debug=debug)
-                # print(type(__f_mpc_debug))
-                self.__visulize_com_traj_solution(f_mpc_debug)
+                contact_forces_debug = self._solve_mpc(ref_traj, gait_table, solver=solver, debug=debug)
+                self.__visulize_com_traj_solution(contact_forces_debug)
 
-        return self.f_mpc[0:12]
+        return self.__contact_forces[0:12]
 
     def generate_reference_trajectory(
         self, 
@@ -198,8 +193,8 @@ class ModelPredictiveController():
         Ac = np.zeros((self.num_state, self.num_state), dtype=float)
         Bc = np.zeros((self.num_state, self.num_input), dtype=float)
 
-        Rz = np.array([[math.cos(self.yaw), -math.sin(self.yaw), 0],
-                       [math.sin(self.yaw), math.cos(self.yaw), 0],
+        Rz = np.array([[np.cos(self.yaw), -np.sin(self.yaw), 0],
+                       [np.sin(self.yaw), np.cos(self.yaw), 0],
                        [0, 0, 1]], dtype=float)
         # Rz = self.__robot_data.R_base
         world_I = Rz @ self.body_I @ Rz.T
@@ -281,7 +276,7 @@ class ModelPredictiveController():
 
     def _solve_mpc(self, ref_traj, gait_table, solver='drake', debug=False):
 
-        assert solver == 'drake' or solver == 'qpsolvers_qpoases'
+        assert solver == 'drake' or solver == 'qpsolvers'
 
         Ac, Bc = self._generate_state_space_model()
         self._discretize_continuous_model(Ac, Bc)
@@ -293,22 +288,22 @@ class ModelPredictiveController():
 
         if solver == 'drake':
             qp_problem = MathematicalProgram()
-            f_mpc = qp_problem.NewContinuousVariables(self.num_input*self.horizon, 'f_mpc')
+            contact_forces = qp_problem.NewContinuousVariables(self.num_input*self.horizon, 'contact_forces')
 
-            qp_problem.AddQuadraticCost(qpH, qpg, f_mpc)
-            qp_problem.AddLinearConstraint(qp_C, C_lb, C_ub, f_mpc)
+            qp_problem.AddQuadraticCost(qpH, qpg, contact_forces)
+            qp_problem.AddLinearConstraint(qp_C, C_lb, C_ub, contact_forces)
 
             result = Solve(qp_problem)
 
-            return result.GetSolution(f_mpc)
+            return result.GetSolution(contact_forces)
 
         else:
-            solution = solve_qp(P=qpH, q=qpg, G=qp_C, h=C_ub, A=None, b=None, solver='osqp')
-            return solution
+            contact_forces = solve_qp(P=qpH, q=qpg, G=qp_C, h=C_ub, A=None, b=None, solver='osqp')
+            return contact_forces
 
 
-    def __visulize_com_traj_solution(self, f_mpc_debug):
-        com_traj = self.Sx @ self.xt + self.Su @ f_mpc_debug
+    def __visulize_com_traj_solution(self, contact_forces_debug):
+        com_traj = self.Sx @ self.xt + self.Su @ contact_forces_debug
         
         trajs = []
         for i in range(12):
