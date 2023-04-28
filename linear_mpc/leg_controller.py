@@ -32,7 +32,7 @@ class LegController():
         self.__torque_cmds = np.zeros(12, dtype=np.float16)
 
     @property
-    def torque_cmds(self):
+    def torque_cmds(self) -> np.ndarray:
         return self.__torque_cmds
 
     def update(
