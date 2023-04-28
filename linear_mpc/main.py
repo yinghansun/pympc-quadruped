@@ -138,7 +138,7 @@ def main():
     gait = Gait.TROTTING10
     swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_id) for leg_id in range(4)]
 
-    vel_base_des = np.array([1.5, 0., 0.])
+    vel_base_des = np.array([0.9, 0., 0.])
     yaw_turn_rate_des = 0.
 
     iter_counter = 0
@@ -173,11 +173,11 @@ def main():
 
         for leg_idx in range(4):
             if swing_states[leg_idx] > 0:   # leg is in swing state
-                swing_foot_trajs[leg_idx].set_foot_init_and_final_placement(
+                swing_foot_trajs[leg_idx].set_foot_placement(
                     robot_data, gait, vel_base_des, yaw_turn_rate_des
                 )
                 base_pos_base_swingfoot_des, base_vel_base_swingfoot_des = \
-                    swing_foot_trajs[leg_idx].compute_swing_foot_trajectory_in_base_frame(
+                    swing_foot_trajs[leg_idx].compute_traj_swingfoot(
                         robot_data, gait
                     )
                 pos_targets_swingfeet[leg_idx, :] = base_pos_base_swingfoot_des

@@ -15,4 +15,4 @@ def make_com_inertial_matrix(
         [ixx, ixy, ixz],
         [ixy, iyy, iyz],
         [ixz, iyz, izz]
-    ])
+    ], dtype=np.float32)

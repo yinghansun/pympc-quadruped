@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../config'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 
 import matplotlib.pyplot as plt
+from numba import jit, vectorize, float32
 import numpy as np
 from scipy.linalg import expm
 from pydrake.all import MathematicalProgram, Solve
@@ -41,7 +42,6 @@ class ModelPredictiveController():
         self.fz_max = robot_config.fz_max
         self.gravity = mpc_config.gravity
 
-        self.body_I = np.diag([0.174706, 0.161175, 0.033357])
         self.body_I = make_com_inertial_matrix(
                 ixx=0.033260231, ixy=-0.000451628, ixz=0.000487603, iyy=0.16117211, iyz=4.8356e-05, izz=0.17460442
             )
@@ -54,22 +54,10 @@ class ModelPredictiveController():
         _Ri = mpc_config.R
         self.Rbar = np.kron(np.identity(self.horizon), _Ri)
 
-        print('dt_control = ', self.dt_control)
-        print('iterations_between_mpc = ', self.iterations_between_mpc)
-        print('dt_mpc = ', self.dt)
-        print('horizon = ', self.horizon)
-        print('friction coef = ', self.mu)
-        print('fz_max = ', self.fz_max)
-        print('gravity = ', self.gravity)
-        print('body_I = ', self.body_I)
-        print('mass = ', self.mass)
-        print('com_height_des = ', self.com_height_des)
-        print('Qi = ', _Qi)
-
     # data: [pos_base, vel_base, quat_base, omega_base, pos_joint, vel_joint, touch_state, pos_foothold, pos_thigh]
     def update_robot_state(self, robot_data: RobotData):
         if self.is_initialized == False:
-            self.current_state = np.zeros(13, dtype=float)
+            self.current_state = np.zeros(13, dtype=np.float32)
             self.roll_init = 0.0
             self.pitch_init = 0.0
             self.is_initialized = True
@@ -78,10 +66,10 @@ class ModelPredictiveController():
 
         # update xt
         rpy_base = quat2ZYXangle(robot_data.quat_base)
-        pos_base = np.array(robot_data.pos_base, dtype=float)
+        pos_base = np.array(robot_data.pos_base, dtype=np.float32)
         # print(pos_base[2])
-        omega_base = np.array(robot_data.ang_vel_base, dtype=float)
-        vel_base = np.array(robot_data.lin_vel_base, dtype=float)
+        omega_base = np.array(robot_data.ang_vel_base, dtype=np.float32)
+        vel_base = np.array(robot_data.lin_vel_base, dtype=np.float32)
         for i in range(3):
             self.current_state[i] = rpy_base[i]
             self.current_state[3+i] = pos_base[i]
@@ -93,8 +81,9 @@ class ModelPredictiveController():
         # update ri
         self.pos_base_feet = robot_data.pos_base_feet
 
-    def update_mpc_if_needed(self, iter_counter, vel_base_des, yaw_turn_rate_des, 
+    def update_mpc_if_needed(self, iter_counter, base_vel_base_des, yaw_turn_rate_des, 
         gait_table, solver='drake', debug=False, iter_debug=None):
+        vel_base_des = self.__robot_data.R_base @ base_vel_base_des
         if self.is_first_run:
             self.xpos_base_desired = 0.0
             self.ypos_base_desired = 0.0
@@ -113,6 +102,7 @@ class ModelPredictiveController():
             self.__contact_forces = self._solve_mpc(ref_traj, gait_table, solver=solver)[0:12]
             solve_end = time.time()
             print('MPC solved in {:3f}s.'.format(solve_end - solve_start))
+            print(self.yaw, self.yaw_desired)
 
             if debug and iter_counter == iter_debug:
                 contact_forces_debug = self._solve_mpc(ref_traj, gait_table, solver=solver, debug=debug)
@@ -126,7 +116,7 @@ class ModelPredictiveController():
         yaw_turn_rate: float
     ) -> np.ndarray:
         
-        vel_base_des = self.__robot_data.R_base @ vel_base_des
+        # vel_base_des = self.__robot_data.R_base @ base_vel_base_des
 
         cur_xpos_desired = self.xpos_base_desired
         cur_ypos_desired = self.ypos_base_desired
@@ -152,7 +142,6 @@ class ModelPredictiveController():
         self.xpos_base_desired = cur_xpos_desired
         self.ypos_base_desired = cur_ypos_desired
 
-        # TODO: why this?
         # pitch and roll compensation
         if np.fabs(self.current_state[9]) > 0.2:
             self.pitch_init += self.dt * (0.0 - self.current_state[1]) / self.current_state[9]
@@ -165,47 +154,43 @@ class ModelPredictiveController():
         roll_comp = self.current_state[10] * self.roll_init
         pitch_comp = self.current_state[9] * self.pitch_init
 
-        X_ref = np.zeros(self.num_state * self.horizon, dtype=float)
-        X_ref[0:self.num_state] = [
-            roll_comp, pitch_comp, self.yaw_desired,
-            cur_xpos_desired, cur_ypos_desired, self.com_height_des,
-            0, 0, yaw_turn_rate,
-            vel_base_des[0], vel_base_des[1], vel_base_des[2],
-            -self.gravity]
-        
+        X_ref = np.zeros(self.num_state * self.horizon, dtype=np.float32)        
+        X_ref[0::self.num_state] = roll_comp
+        X_ref[1::self.num_state] = pitch_comp
+        X_ref[2] = self.yaw_desired
+        X_ref[3] = cur_xpos_desired
+        X_ref[4] = cur_ypos_desired
+        X_ref[5::self.num_state] = self.com_height_des
+        X_ref[8::self.num_state] = yaw_turn_rate
+        X_ref[9::self.num_state] = vel_base_des[0]
+        X_ref[10::self.num_state] = vel_base_des[1]
+        X_ref[12::self.num_state] = -self.gravity
         for i in range(1, self.horizon):
-            X_ref[0 + self.num_state*i] = X_ref[0]
-            X_ref[1 + self.num_state*i] = X_ref[1]
             X_ref[2 + self.num_state*i] = X_ref[2 + self.num_state*(i-1)] + self.dt * yaw_turn_rate
             X_ref[3 + self.num_state*i] = X_ref[3 + self.num_state*(i-1)] + self.dt * vel_base_des[0]
             X_ref[4 + self.num_state*i] = X_ref[4 + self.num_state*(i-1)] + self.dt * vel_base_des[1]
-            X_ref[5 + self.num_state*i] = X_ref[5]
-            X_ref[8 + self.num_state*i] = X_ref[8]
-            X_ref[9 + self.num_state*i] = X_ref[9]
-            X_ref[10 + self.num_state*i] = X_ref[10]
-            X_ref[12 + self.num_state*i] = -self.gravity
 
         return X_ref
 
     # dynamic constraints: \dot{x} = A_{c}x + B_{c}u
     def _generate_state_space_model(self):
         # Ac (13 * 13), Bc (13 * 12)
-        Ac = np.zeros((self.num_state, self.num_state), dtype=float)
-        Bc = np.zeros((self.num_state, self.num_input), dtype=float)
+        Ac = np.zeros((self.num_state, self.num_state), dtype=np.float32)
+        Bc = np.zeros((self.num_state, self.num_input), dtype=np.float32)
 
         Rz = np.array([[np.cos(self.yaw), -np.sin(self.yaw), 0],
                        [np.sin(self.yaw), np.cos(self.yaw), 0],
-                       [0, 0, 1]], dtype=float)
+                       [0, 0, 1]], dtype=np.float32)
         # Rz = self.__robot_data.R_base
         world_I = Rz @ self.body_I @ Rz.T
         
         Ac[0:3, 6:9] = Rz.T
-        Ac[3:6, 9:12] = np.identity(3, dtype=float)
+        Ac[3:6, 9:12] = np.identity(3, dtype=np.float32)
         Ac[11, 12] = 1.0
 
         for i in range(4):
             Bc[6:9, 3*i:3*i+3] = np.linalg.inv(world_I) @ vec2so3(self.pos_base_feet[i])
-            Bc[9:12, 3*i:3*i+3] = np.identity(3, dtype=float) / self.mass
+            Bc[9:12, 3*i:3*i+3] = np.identity(3, dtype=np.float32) / self.mass
         
         return Ac, Bc
 
@@ -213,7 +198,7 @@ class ModelPredictiveController():
         # square_matrix = [[Ac (13*13), Bc (13*12)],
         #                  [0  (12*13), 0  (12*12)]] * dt (25*25)
         dim = self.num_state + self.num_input
-        square_matrix = np.zeros((dim, dim), dtype=float)
+        square_matrix = np.zeros((dim, dim), dtype=np.float32)
         square_matrix[0:self.num_state, 0:self.num_state] = Ac * self.dt
         square_matrix[0:self.num_state, self.num_state:dim] = Bc * self.dt
 
@@ -225,14 +210,15 @@ class ModelPredictiveController():
 
         return Ad, Bd
 
+    # @jit(nopython=False)
     def _generate_QP_cost(self, Ad, Bd, xt, Xref, debug=False):
         # power_of_A = [A, A^2, A^3, ..., A^k]
-        power_of_A = [np.identity(self.num_state, dtype=float)]
+        power_of_A = [np.identity(self.num_state, dtype=np.float32)]
         for i in range(self.horizon):
             power_of_A.append(power_of_A[i] @ Ad)
 
-        Sx = np.zeros((self.num_state * self.horizon, self.num_state), dtype=float)
-        Su = np.zeros((self.num_state * self.horizon, self.num_input * self.horizon), dtype=float)
+        Sx = np.zeros((self.num_state * self.horizon, self.num_state), dtype=np.float32)
+        Su = np.zeros((self.num_state * self.horizon, self.num_input * self.horizon), dtype=np.float32)
         
         if debug:
             self.Sx = Sx
@@ -250,18 +236,20 @@ class ModelPredictiveController():
         qp_g = 2 * Su.T @ self.Qbar @ (Sx @ xt - Xref)
 
         return qp_H, qp_g
-            
+    
     def _generate_QP_constraints(self, gait_table):
         # friction cone constraint for one foot
-        constraint_coef_matrix = np.array([[1, 0, self.mu],
-                                           [-1, 0, self.mu],
-                                           [0, 1, self.mu],
-                                           [0, -1, self.mu],
-                                           [0, 0, 1]], dtype=float)
-        qp_C = np.kron(np.identity(4 * self.horizon, dtype=float), constraint_coef_matrix)
+        constraint_coef_matrix = np.array([
+            [ 1,  0, self.mu],
+            [-1,  0, self.mu],
+            [ 0,  1, self.mu],
+            [ 0, -1, self.mu],
+            [ 0,  0,       1]
+        ], dtype=np.float32)
+        qp_C = np.kron(np.identity(4 * self.horizon, dtype=np.float32), constraint_coef_matrix)
         
-        C_lb = np.zeros(4 * 5 * self.horizon, dtype=float)
-        C_ub = np.zeros(4 * 5 * self.horizon, dtype=float)
+        C_lb = np.zeros(4 * 5 * self.horizon, dtype=np.float32)
+        C_ub = np.zeros(4 * 5 * self.horizon, dtype=np.float32)
         k = 0
         for i in range(self.horizon):
             for j in range(4):    # number of legs
@@ -281,7 +269,10 @@ class ModelPredictiveController():
         Ac, Bc = self._generate_state_space_model()
         self._discretize_continuous_model(Ac, Bc)
         Ad, Bd = self._discretize_continuous_model(Ac, Bc)
+        # start_time = time.time()
         qpH, qpg = self._generate_QP_cost(Ad, Bd, self.current_state, ref_traj, debug=debug)
+        # end_time = time.time()
+        # print('QP cost generated in {:3f}s.'.format(end_time - start_time))
 
         # constraint_coef_matrix, lb, ub = self._generate_force_constraints(gait_table)
         qp_C, C_lb, C_ub = self._generate_QP_constraints(gait_table)

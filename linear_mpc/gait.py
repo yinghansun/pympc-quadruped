@@ -8,6 +8,10 @@ import numpy as np
 from linear_mpc_configs import LinearMpcConfig
 
 class Gait(Enum):
+    '''
+    name: name of the gait
+    num_segment: 
+    '''
 
     STANDING = 'standing', 16, np.array([0, 0, 0, 0]), np.array([16, 16, 16, 16])
     TROTTING16 = 'trotting', 16, np.array([0, 8, 8, 0]), np.array([8, 8, 8, 8])
@@ -16,10 +20,7 @@ class Gait(Enum):
     # BOUNDING8 = 'bounding', 8, np.array([4, 4, 0, 0]), np.array([4, 4, 4, 4])
     PACING16 = 'pacing', 16, np.array([8, 0, 8, 0]), np.array([8, 8, 8, 8])
     PACING10 = 'pacing', 10, np.array([5, 0, 5, 0]), np.array([5, 5, 5, 5])
-    '''
-    name: name of the gait
-    num_segment: 
-    '''
+
     def __init__(
         self, 
         name: str, 
@@ -83,7 +84,7 @@ class Gait(Enum):
 
         1 for stance, 0 for swing
         '''
-        gait_table = np.zeros(4 * self.__mpc_horizon, dtype=float)
+        gait_table = np.zeros(4 * self.__mpc_horizon, dtype=np.float32)
         for i in range(self.__mpc_horizon):
             i_horizon = (i + 1 + self.iteration) % self.num_segment
             cur_segment = i_horizon - self.stance_offsets
@@ -105,7 +106,7 @@ class Gait(Enum):
                 swing_offsets_normalizerd -= 1
         swing_durations_normalized = 1 - self.stance_durations_normalized
 
-        phase_state = np.array([self.phase, self.phase, self.phase, self.phase], dtype=float)
+        phase_state = np.array([self.phase, self.phase, self.phase, self.phase], dtype=np.float32)
         swing_state = phase_state - swing_offsets_normalizerd
 
         for i in range(4):
@@ -120,7 +121,7 @@ class Gait(Enum):
         return swing_state
 
     def get_stance_state(self) -> np.ndarray:
-        phase_state = np.array([self.phase, self.phase, self.phase, self.phase], dtype=float)
+        phase_state = np.array([self.phase, self.phase, self.phase, self.phase], dtype=np.float32)
         stance_state = phase_state - self.stance_offsets_normalized
         for i in range(4):
             if stance_state[i] < 0:

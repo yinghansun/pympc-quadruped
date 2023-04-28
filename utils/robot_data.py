@@ -54,7 +54,7 @@ class RobotData():
         self.state_estimation = state_estimation
         self.__init_pinocchio(robot_model)
 
-        self.__contact_history = np.zeros((4, 3), dtype=float)
+        self.__contact_history = np.zeros((4, 3), dtype=np.float32)
     
     def update(
         self, 
@@ -87,7 +87,7 @@ class RobotData():
         # generalized joint position (floating base), dim: 3 + 3 + 12 = 18.
         generalized_q = list(self.pos_base) + list(quat_base_converted) \
             + list(self.q)
-        self.__generalized_q = np.array(generalized_q, dtype=float)
+        self.__generalized_q = np.array(generalized_q, dtype=np.float32)
         pinocchio.forwardKinematics(self.__pin_model, self.__pin_data, self.__generalized_q)
         pinocchio.framesForwardKinematics(self.__pin_model, self.__pin_data, self.__generalized_q)
 
@@ -159,7 +159,7 @@ class RobotData():
         base_vel_base_feet = []
         for foot_idx in range(4):
             generalized_qdot = list(self.lin_vel_base) + list(self.ang_vel_base) + list(self.qdot)
-            generalized_qdot = np.array(generalized_qdot, dtype=float)
+            generalized_qdot = np.array(generalized_qdot, dtype=np.float32)
             vel_footi = self.Jv_feet[foot_idx] @ generalized_qdot
             vel_base_footi = vel_footi - self.lin_vel_base
             base_vel_base_footi = self.R_base.T @ vel_base_footi
@@ -218,7 +218,7 @@ class RobotData():
         # PCA approach
         X = self.__contact_history.T
         mu = np.mean(self.__contact_history, axis=0).reshape(3, 1)
-        one = np.ones((1, 4), dtype=float)
+        one = np.ones((1, 4), dtype=np.float32)
         sigma = (X - mu @ one) @ ((X - mu @ one).T)
         eigenvalues, eigenvectors = np.linalg.eig(sigma)
         self.terrain_normal_est = eigenvectors[np.argmin(eigenvalues)]

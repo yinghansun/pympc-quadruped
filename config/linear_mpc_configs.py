@@ -10,7 +10,7 @@ class LinearMpcConfig:
 
     horizon: int = 16
 
-    gravity: np.float16 = 9.81
+    gravity: np.float32 = 9.81
 
     friction_coef: float = 0.7
 

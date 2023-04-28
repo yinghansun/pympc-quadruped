@@ -29,7 +29,7 @@ class LegController():
     def __init__(self, Kp_swing: np.ndarray, Kd_swing: np.ndarray):
         self.__Kp_swing = Kp_swing
         self.__Kd_swing = Kd_swing
-        self.__torque_cmds = np.zeros(12, dtype=np.float16)
+        self.__torque_cmds = np.zeros(12, dtype=np.float32)
 
     @property
     def torque_cmds(self) -> np.ndarray:
