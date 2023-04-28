@@ -82,7 +82,7 @@ def get_simulated_sensor_data(sim):
 
 def initialize_robot(sim, viewer, robot_config, robot_data):
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
-    leg_controller = LegController(robot_config)
+    leg_controller = LegController(robot_config.Kp_swing, robot_config.Kd_swing)
     init_gait = Gait.STANDING
     vel_base_des = [0., 0., 0.]
     
@@ -110,9 +110,8 @@ def initialize_robot(sim, viewer, robot_config, robot_data):
         contact_forces = predictive_controller.update_mpc_if_needed(
             iter_counter, vel_base_des, 0., gait_table, solver='drake', debug=False, iter_debug=0)
 
-        leg_controller.update(contact_forces, robot_data, swing_states)
-        torque_command = leg_controller.get_torque_command()
-        sim.data.ctrl[:] = torque_command
+        torque_cmds = leg_controller.update(robot_data, contact_forces, swing_states)
+        sim.data.ctrl[:] = torque_cmds
 
         sim.step()
         viewer.render()
@@ -134,7 +133,7 @@ def main():
     # initialize_robot(sim, viewer, robot_config, robot_data)
 
     predictive_controller = ModelPredictiveController(LinearMpcConfig, AliengoConfig)
-    leg_controller = LegController(robot_config)
+    leg_controller = LegController(robot_config.Kp_swing, robot_config.Kd_swing)
 
     gait = Gait.TROTTING10
     swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_id) for leg_id in range(4)]
@@ -184,9 +183,8 @@ def main():
                 pos_targets_swingfeet[leg_idx, :] = base_pos_base_swingfoot_des
                 vel_targets_swingfeet[leg_idx, :] = base_vel_base_swingfoot_des
 
-        leg_controller.update(contact_forces, robot_data, swing_states, pos_targets_swingfeet, vel_targets_swingfeet)
-        torque_command = leg_controller.get_torque_command()
-        sim.data.ctrl[:] = torque_command
+        torque_cmds = leg_controller.update(robot_data, contact_forces, swing_states, pos_targets_swingfeet, vel_targets_swingfeet)
+        sim.data.ctrl[:] = torque_cmds
 
         sim.step()
         viewer.render()
