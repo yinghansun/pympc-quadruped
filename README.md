@@ -1,6 +1,8 @@
 # pympc-quadruped
 A Python implementation about quadruped locomotion using convex model predictive control (MPC).
 
+![image](https://github.com/yinghansun/pympc-quadruped/blob/main/doc/results/trotting10_mujoco.gif)
+
 ## Installation
 
 ### 1. Create a Virtual Environment
