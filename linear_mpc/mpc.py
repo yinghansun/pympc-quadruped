@@ -13,7 +13,6 @@ from scipy.linalg import expm
 from pydrake.all import MathematicalProgram, Solve
 from qpsolvers import solve_qp
 
-from dynamics import make_com_inertial_matrix
 from kinematics import quat2ZYXangle, vec2so3
 from linear_mpc_configs import LinearMpcConfig
 from robot_configs import RobotConfig
@@ -42,9 +41,7 @@ class ModelPredictiveController():
         self.fz_max = robot_config.fz_max
         self.gravity = mpc_config.gravity
 
-        self.body_I = make_com_inertial_matrix(
-                ixx=0.033260231, ixy=-0.000451628, ixz=0.000487603, iyy=0.16117211, iyz=4.8356e-05, izz=0.17460442
-            )
+        self.base_inertia_base = robot_config.base_inertia_base
         self.mass = robot_config.mass_base
         self.com_height_des = robot_config.base_height_des
 
@@ -182,7 +179,7 @@ class ModelPredictiveController():
                        [np.sin(self.yaw), np.cos(self.yaw), 0],
                        [0, 0, 1]], dtype=np.float32)
         # Rz = self.__robot_data.R_base
-        world_I = Rz @ self.body_I @ Rz.T
+        world_I = Rz @ self.base_inertia_base @ Rz.T
         
         Ac[0:3, 6:9] = Rz.T
         Ac[3:6, 9:12] = np.identity(3, dtype=np.float32)

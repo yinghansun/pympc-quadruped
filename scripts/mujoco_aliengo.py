@@ -1,7 +1,8 @@
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../utils'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../config'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../linear_mpc'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../utils/'))
 
 import mujoco_py
 from mujoco_py import MjViewer
@@ -20,25 +21,39 @@ STATE_ESTIMATION = False
 
 def reset(sim):
     sim.reset()
-    # q_pos_init = np.array([0, 0, 0.116536,
-    #                        1, 0, 0, 0,
-    #                        0, 1.16, -2.77,
-    #                        0, 1.16, -2.77,
-    #                        0, 1.16, -2.77,
-    #                        0, 1.16, -2.77])
-    q_pos_init = np.array([0, 0, 0.41,
-                           1, 0, 0, 0,
-                           0, 0.8, -1.6,
-                           0, 0.8, -1.6,
-                           0, 0.8, -1.6,
-                           0, 0.8, -1.6])
-    q_vel_init = np.array([0, 0, 0, 
-                           0, 0, 0,
-                           0, 0, 0,
-                           0, 0, 0,
-                           0, 0, 0,
-                           0, 0, 0])
-    init_state = mujoco_py.cymj.MjSimState(time=0.0, qpos=q_pos_init, qvel=q_vel_init, act=None, udd_state={})
+    # q_pos_init = np.array([
+    #     0, 0, 0.116536,
+    #     1, 0, 0, 0,
+    #     0, 1.16, -2.77,
+    #     0, 1.16, -2.77,
+    #     0, 1.16, -2.77,
+    #     0, 1.16, -2.77
+    # ])
+    q_pos_init = np.array([
+        0, 0, 0.41,
+        1, 0, 0, 0,
+        0, 0.8, -1.6,
+        0, 0.8, -1.6,
+        0, 0.8, -1.6,
+        0, 0.8, -1.6
+    ])
+    
+    q_vel_init = np.array([
+        0, 0, 0, 
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0
+    ])
+    
+    init_state = mujoco_py.cymj.MjSimState(
+        time=0.0, 
+        qpos=q_pos_init, 
+        qvel=q_vel_init, 
+        act=None, 
+        udd_state={}
+    )
     sim.set_state(init_state)
 
 def get_true_simulation_data(sim):
@@ -49,21 +64,37 @@ def get_true_simulation_data(sim):
     pos_joint = sim.data.sensordata[10:22]
     vel_joint = sim.data.sensordata[22:34]
     touch_state = sim.data.sensordata[34:38]
-    pos_foothold = [sim.data.get_geom_xpos('fl_foot'),
-                    sim.data.get_geom_xpos('fr_foot'),
-                    sim.data.get_geom_xpos('rl_foot'),
-                    sim.data.get_geom_xpos('rr_foot')]
-    vel_foothold = [sim.data.get_geom_xvelp('fl_foot'),
-                    sim.data.get_geom_xvelp('fr_foot'),
-                    sim.data.get_geom_xvelp('rl_foot'),
-                    sim.data.get_geom_xvelp('rr_foot')]
-    pos_thigh = [sim.data.get_body_xpos("FL_thigh"),
-                 sim.data.get_body_xpos("FR_thigh"),
-                 sim.data.get_body_xpos("RL_thigh"),
-                 sim.data.get_body_xpos("RR_thigh")]
+    pos_foothold = [
+        sim.data.get_geom_xpos('fl_foot'),
+        sim.data.get_geom_xpos('fr_foot'),
+        sim.data.get_geom_xpos('rl_foot'),
+        sim.data.get_geom_xpos('rr_foot')
+    ]
+    vel_foothold = [
+        sim.data.get_geom_xvelp('fl_foot'),
+        sim.data.get_geom_xvelp('fr_foot'),
+        sim.data.get_geom_xvelp('rl_foot'),
+        sim.data.get_geom_xvelp('rr_foot')
+    ]
+    pos_thigh = [
+        sim.data.get_body_xpos("FL_thigh"),
+        sim.data.get_body_xpos("FR_thigh"),
+        sim.data.get_body_xpos("RL_thigh"),
+        sim.data.get_body_xpos("RR_thigh")
+    ]
 
-    true_simulation_data = [pos_base, vel_base, quat_base, omega_base, pos_joint, 
-                            vel_joint, touch_state, pos_foothold, vel_foothold, pos_thigh]
+    true_simulation_data = [
+        pos_base, 
+        vel_base, 
+        quat_base, 
+        omega_base, 
+        pos_joint, 
+        vel_joint, 
+        touch_state, 
+        pos_foothold, 
+        vel_foothold, 
+        pos_thigh
+    ]
     # print(true_simulation_data)
     return true_simulation_data
 
@@ -75,7 +106,14 @@ def get_simulated_sensor_data(sim):
     vel_joint = sim.data.sensordata[22:34]
     touch_state = sim.data.sensordata[34:38]
             
-    simulated_sensor_data = [imu_quat, imu_gyro, imu_accelerometer, pos_joint, vel_joint, touch_state]
+    simulated_sensor_data = [
+        imu_quat, 
+        imu_gyro, 
+        imu_accelerometer, 
+        pos_joint, 
+        vel_joint, 
+        touch_state
+        ]
     # print(simulated_sensor_data)
     return simulated_sensor_data
 
@@ -136,9 +174,9 @@ def main():
     leg_controller = LegController(robot_config.Kp_swing, robot_config.Kd_swing)
 
     gait = Gait.TROTTING10
-    swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_id) for leg_id in range(4)]
+    swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_idx) for leg_idx in range(4)]
 
-    vel_base_des = np.array([0.9, 0., 0.])
+    vel_base_des = np.array([1.4, 0., 0.])
     yaw_turn_rate_des = 0.
 
     iter_counter = 0
