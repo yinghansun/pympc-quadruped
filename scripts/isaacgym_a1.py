@@ -21,37 +21,37 @@ from swing_foot_trajectory_generator import SwingFootTrajectoryGenerator
 NUM_ROBOTS = 4
 STATE_ESTIMATION = False
 
-def reset(gym, sim):
-    _q_tensor = gym.acquire_dof_state_tensor(sim)
-    _root_tensor = gym.acquire_actor_root_state_tensor(sim)
-
-    root_tensor = gymtorch.wrap_tensor(_root_tensor)
-    root_tensor[:, 0:3] = torch.zeros_like(root_tensor[:, 0:3])  # base position
-    root_tensor[:, 2] = 0.42
-    root_tensor[:, 3:7] = torch.zeros_like(root_tensor[:, 3:7])  # base orientation
-    root_tensor[:, 6] = 1.
-    root_tensor[:, 7:10] = torch.zeros_like(root_tensor[:, 7:10]) # base linear velocity
-    root_tensor[:, 10:13] = torch.zeros_like(root_tensor[:, 10:13]) # base angular velocity
-    _root_tensor = gymtorch.unwrap_tensor(root_tensor)
+def reset(gym, sim, robot_config):
+    base_state_tensor_discription = gym.acquire_actor_root_state_tensor(sim)
+    base_state_tensor = gymtorch.wrap_tensor(base_state_tensor_discription)
+    base_state_tensor[:, 0:3] = torch.zeros_like(base_state_tensor[:, 0:3])  # base position
+    base_state_tensor[:, 2] = robot_config.base_height_des
+    base_state_tensor[:, 3:7] = torch.zeros_like(base_state_tensor[:, 3:7])  # base orientation
+    base_state_tensor[:, 6] = 1.
+    base_state_tensor[:, 7:10] = torch.zeros_like(base_state_tensor[:, 7:10]) # base linear velocity
+    base_state_tensor[:, 10:13] = torch.zeros_like(base_state_tensor[:, 10:13]) # base angular velocity
+    base_state_tensor_discription = gymtorch.unwrap_tensor(base_state_tensor)
+    gym.set_actor_root_state_tensor(sim, base_state_tensor_discription)
     
-    q_tensor = gymtorch.wrap_tensor(_q_tensor)
-    q_tensor[:, 1] = torch.zeros_like(q_tensor[:, 1])
-    q_tensor[0, 0] = 0
-    q_tensor[1, 0] = 0.8
-    q_tensor[2, 0] = -1.6
-    q_tensor[3, 0] = 0
-    q_tensor[4, 0] = 0.8
-    q_tensor[5, 0] = -1.6
-    q_tensor[6, 0] = 0
-    q_tensor[7, 0] = 0.8
-    q_tensor[8, 0] = -1.6
-    q_tensor[9, 0] = 0
-    q_tensor[10, 0] = 0.8
-    q_tensor[11, 0] = -1.6
-    _q_tensor = gymtorch.unwrap_tensor(q_tensor)
+    # joint_state_tensor_discription = gym.acquire_dof_state_tensor(sim)
+    # joint_state_tensor = gymtorch.wrap_tensor(joint_state_tensor_discription)
+    # joint_state_tensor[:, 1] = torch.zeros_like(joint_state_tensor[:, 1])
+    # for robot_idx in range(NUM_ROBOTS):
+    #     joint_state_tensor[0*robot_idx, 0] = 0
+    #     joint_state_tensor[1*robot_idx, 0] = 0.8
+    #     joint_state_tensor[2*robot_idx, 0] = -1.6
+    #     joint_state_tensor[3*robot_idx, 0] = 0
+    #     joint_state_tensor[4*robot_idx, 0] = 0.8
+    #     joint_state_tensor[5*robot_idx, 0] = -1.6
+    #     joint_state_tensor[6*robot_idx, 0] = 0
+    #     joint_state_tensor[7*robot_idx, 0] = 0.8
+    #     joint_state_tensor[8*robot_idx, 0] = -1.6
+    #     joint_state_tensor[9*robot_idx, 0] = 0
+    #     joint_state_tensor[10*robot_idx, 0] = 0.8
+    #     joint_state_tensor[11*robot_idx, 0] = -1.6
+    #     joint_state_tensor_discription = gymtorch.unwrap_tensor(joint_state_tensor)
+    # gym.set_dof_state_tensor(sim, joint_state_tensor_discription)
 
-    gym.set_dof_state_tensor(sim, _q_tensor)
-    gym.set_actor_root_state_tensor(sim, _root_tensor)
 
 
 def main():
@@ -83,7 +83,7 @@ def main():
 
     gym.prepare_sim(sim)
 
-    # reset(gym, sim)
+    reset(gym, sim, robot_config)
 
     l_predictive_controller: List[ModelPredictiveController] = []
     l_leg_controller: List[LegController] = []
@@ -131,6 +131,8 @@ def main():
                 q = joint_state_tensor[12*robot_idx:12*(robot_idx+1), 0].cpu().numpy(),
                 qdot = joint_state_tensor[12*robot_idx:12*(robot_idx+1), 1].cpu().numpy()
             )
+            print(robot_data.pos_base)
+            print(robot_data.q)
 
             gait.set_iteration(predictive_controller.iterations_between_mpc, iter_counter)
             swing_states = gait.get_swing_state()
@@ -170,7 +172,7 @@ def main():
         iter_counter += 1
 
         if iter_counter == 3000:
-            reset(gym, sim)
+            reset(gym, sim, robot_config)
             iter_counter = 0
             render_counter = 0
 
