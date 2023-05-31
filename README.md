@@ -60,6 +60,13 @@ $ virtualenv --python /usr/bin/python3.8 pympc-env
 `export LD_LIBRARY_PATH=/path/to/conda/envs/your_env/lib` before executing your python script. If you are not using conda, the path shoud be `/path/to/libpython/directory`.
 
 ### 3. Install Dependences
+
+**a) Install Pinocchio** 
+
+Pinocchio provides the state-of-the-art rigid body kinematics and dynamic algorithms. You could follow [this link](https://stack-of-tasks.github.io/pinocchio/download.html) to install Pinocchio.
+
+**b) Install other dependences**
+
 ~~~
 $ cd ${path-to-pympc-quadruped}
 $ source ${path-to-pympc-quadruped}/pympc-env/bin/activate
