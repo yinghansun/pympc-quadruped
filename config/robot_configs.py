@@ -20,7 +20,7 @@ class RobotConfig:
 
 class AliengoConfig(RobotConfig):
     mass_base: float = 9.042
-    base_height_des: float = 0.42
+    base_height_des: float = 0.38
     base_inertia_base = make_com_inertial_matrix(
         ixx=0.033260231, 
         ixy=-0.000451628, 

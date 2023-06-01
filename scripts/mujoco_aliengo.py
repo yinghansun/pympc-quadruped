@@ -19,7 +19,7 @@ from swing_foot_trajectory_generator import SwingFootTrajectoryGenerator
 
 STATE_ESTIMATION = False
 
-def reset(sim):
+def reset(sim, robot_config):
     sim.reset()
     # q_pos_init = np.array([
     #     0, 0, 0.116536,
@@ -30,7 +30,7 @@ def reset(sim):
     #     0, 1.16, -2.77
     # ])
     q_pos_init = np.array([
-        0, 0, 0.41,
+        0, 0, robot_config.base_height_des,
         1, 0, 0, 0,
         0, 0.8, -1.6,
         0, 0.8, -1.6,
@@ -161,10 +161,10 @@ def main():
     sim = mujoco_py.MjSim(model)
     viewer = MjViewer(sim)
 
-    reset(sim)
-    sim.step()
-
     robot_config = AliengoConfig
+
+    reset(sim, robot_config)
+    sim.step()
 
     urdf_path = os.path.join(cur_path, '../robot/aliengo/urdf/aliengo.urdf')
     robot_data = RobotData(urdf_path, state_estimation=STATE_ESTIMATION)
@@ -176,7 +176,7 @@ def main():
     gait = Gait.TROTTING10
     swing_foot_trajs = [SwingFootTrajectoryGenerator(leg_idx) for leg_idx in range(4)]
 
-    vel_base_des = np.array([1.4, 0., 0.])
+    vel_base_des = np.array([1.2, 0., 0.])
     yaw_turn_rate_des = 0.
 
     iter_counter = 0
